@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Project Pikachu | Smart Study Desk</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "on-tertiary-container": "#88ecdb", "on-surface": "#191c1d", "on-error": "#ffffff",
+                "tertiary": "#005249", "secondary": "#486176", "surface-variant": "#e1e3e4",
+                "on-tertiary": "#ffffff", "surface-container-highest": "#e1e3e4", "secondary-container": "#cbe6ff",
+                "surface-container": "#edeeef", "surface-dim": "#d9dadb", "primary": "#00478d",
+                "surface-container-low": "#f3f4f5", "surface": "#f8f9fa", "surface-container-lowest": "#ffffff",
+                "on-background": "#191c1d", "error": "#ba1a1a", "background": "#f8f9fa",
+                "primary-container": "#005eb8", "tertiary-container": "#006c60", "on-error-container": "#93000a",
+                "on-surface-variant": "#424752"
+              },
+              fontFamily: {
+                "headline": ["Manrope"], "body": ["Inter"], "label": ["Space Grotesk"]
+              },
+            },
+          },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; display: inline-block; line-height: 1; }
+        body { font-family: 'Inter', sans-serif; }
+        .font-headline { font-family: 'Manrope', sans-serif; }
+        .font-label { font-family: 'Space Grotesk', sans-serif; }
+        @keyframes pulse-edge {
+            0% {
+                box-shadow: inset 0 0 30px rgba(255, 215, 0, 0.3), inset 0 0 60px rgba(255, 215, 0, 0.1);
+            }
+            100% {
+                box-shadow: inset 0 0 60px rgba(255, 215, 0, 0.8), inset 0 0 120px rgba(255, 215, 0, 0.3);
+            }
+            }
+        .edge-glow-active {
+            opacity: 1 !important;
+            animation: pulse-edge 2s infinite alternate ease-in-out;
+        }
+        /* Pikachu Thunderbolt Animations */
+        @keyframes lightning-flash {
+            0% { opacity: 0; background-color: #fff; }
+            10% { opacity: 1; background-color: #fff; }
+            20% { opacity: 0; background-color: #ffe600; }
+            30% { opacity: 1; background-color: #fff; }
+            40% { opacity: 0; }
+            100% { opacity: 0; }
+        }
+        .flash-active {
+            animation: lightning-flash 0.6s ease-out;
+            z-index: 9999;
+        }
+        
+        @keyframes screen-shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-2px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(0px, 0px) rotate(0deg); }
+        }
+        .shake-active {
+            animation: screen-shake 0.5s;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface">
+    <div id="edgeLight" class="fixed inset-0 z-50 pointer-events-none opacity-0 transition-opacity duration-1000"></div>
+    <div id="lightningFlash" class="fixed inset-0 opacity-0 pointer-events-none"></div>
+    <audio id="alertSound" src="{{ url_for('static', filename='alert.mp3') }}" preload="auto"></audio>
+    <audio id="thunderbolt" src="{{ url_for('static', filename='thunderbolt.mp3') }}" preload="auto"></audio>
+
+    <aside class="flex flex-col fixed left-0 top-0 h-screen py-6 px-4 bg-slate-100 dark:bg-slate-900 w-64 border-r-0 z-50">
+        <div class="mb-10 px-4">
+            <h1 class="text-lg font-bold tracking-tight text-sky-900 dark:text-sky-100 font-headline">Smart Study Desk</h1>
+            <p class="text-[10px] font-label uppercase tracking-widest text-slate-500">IoT Digital Curator</p>
+        </div>
+        <nav class="flex-1 space-y-2">
+            <a class="flex items-center gap-3 px-4 py-3 rounded-lg text-sky-700 font-bold bg-slate-200/50" href="#">
+                <span class="material-symbols-outlined">dashboard</span><span class="font-body text-sm">Overview</span>
+            </a>
+            <a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-500 hover:text-sky-600 hover:bg-slate-200/50" href="/history">
+                <span class="material-symbols-outlined">history</span><span class="font-body text-sm">History</span>
+            </a>
+        </nav>
+        <div class="mt-auto px-4 py-4 flex items-center gap-3 bg-white/40 rounded-xl">
+            <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold">SP</div>
+            <div>
+                <p class="text-sm font-bold text-on-surface">Shubhra</p>
+                <p id="nav_status" class="text-xs text-slate-500 uppercase font-bold text-error">Stopped</p>
+            </div>
+        </div>
+    </aside>
+
+    <header class="flex justify-between items-center w-full px-8 py-3 ml-64 max-w-[calc(100%-16rem)] bg-white/70 backdrop-blur-xl sticky top-0 z-40 border-b border-outline-variant/10">
+        <div class="flex items-center gap-6">
+            <span class="text-xl font-black text-sky-900 font-headline uppercase tracking-tighter">PROJECT PIKACHU</span><span><img src="../static/pikachu.png" alt="Description of image" width="50" height="50"></span>
+        </div>
+    </header>
+
+    <main class="ml-64 p-8 max-w-[1600px]">
+        
+        <section id="alertBanner" class="mb-8 hidden">
+            <div class="bg-error-container text-on-error-container p-4 rounded-xl flex items-center justify-between border-l-4 border-error shadow-sm animate-pulse">
+                <div class="flex items-center gap-4">
+                    <div class="bg-error p-2 rounded-full text-white">
+                        <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">warning</span>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-sm">Critical Alert Triggered</h4>
+                        <p id="alertMessage" class="text-xs opacity-80">--</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="grid grid-cols-12 gap-6 mb-6">
+            
+            <div class="col-span-12 lg:col-span-8 bg-surface-container-low rounded-xl p-6 relative overflow-hidden flex flex-col">
+                <div class="flex justify-between items-end mb-4">
+                    <div>
+                        <span class="text-[10px] font-label font-bold text-primary uppercase tracking-widest">Real-time Visualization</span>
+                        <h2 class="text-2xl font-extrabold font-headline text-on-surface">Data Stream Analysis</h2>
+                    </div>
+                    <div class="flex gap-2">
+                        <span class="px-3 py-1 bg-tertiary-container text-on-tertiary-container rounded-full text-[10px] font-label font-bold animate-pulse">LIVE FEED</span>
+                    </div>
+                </div>
+                
+                <div class="flex-grow w-full relative min-h-[250px]">
+                    <canvas id="liveChart"></canvas>
+                </div>
+            </div>
+
+            <div class="col-span-12 lg:col-span-4 flex flex-col gap-6">
+                
+                <div class="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/10">
+                    <h3 class="text-xs font-label font-bold uppercase tracking-widest text-secondary mb-6">Study Session Control</h3>
+                    <div class="space-y-4">
+                        <button id="btn_start" onclick="sendCommand('start')" class="w-full bg-tertiary hover:bg-tertiary-container text-white py-4 rounded-xl flex items-center justify-center gap-3 transition-all group active:scale-95 cursor-pointer">
+                            <span id="icon_start" class="material-symbols-outlined transition-transform group-hover:rotate-12" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+                            <span id="text_start" class="font-bold text-sm">INITIALIZE</span>
+                        </button>
+                        <div class="grid grid-cols-2 gap-4">
+                            <button id="btn_pause" onclick="sendCommand('pause')" disabled class="bg-[#FFBF00]/10 text-[#7D5D00] py-3 rounded-xl flex items-center justify-center gap-2 transition-all opacity-50 cursor-not-allowed grayscale">
+                                <span class="material-symbols-outlined text-lg">pause</span>
+                                <span id="text_pause" class="font-bold text-xs">SUSPEND</span>
+                            </button>
+                            <button id="btn_stop" onclick="sendCommand('stop')" disabled class="bg-error/10 text-error py-3 rounded-xl flex items-center justify-center gap-2 transition-all opacity-50 cursor-not-allowed grayscale">
+                                <span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">stop</span>
+                                <span id="text_stop" class="font-bold text-xs">TERMINATE</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-6 pt-6 border-t border-outline-variant/10">
+                        <div class="flex justify-between items-center text-xs mb-2">
+                            <span class="text-slate-500 font-body">Temp Timer</span>
+                            <span id="timer_temp" class="font-label font-bold text-error">--:--</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs mb-2">
+                            <span class="text-slate-500 font-body">AQI Timer</span>
+                            <span id="timer_aqi" class="font-label font-bold text-error">--:--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-surface-container-low rounded-xl p-6 flex-grow">
+                    <h3 class="text-xs font-label font-bold uppercase tracking-widest text-secondary mb-6">Appliance Network</h3>
+                    <div class="space-y-3">
+                        <div id="card_lamp" class="flex items-center justify-between p-3 bg-white rounded-full opacity-60 transition-opacity">
+                            <div class="flex items-center gap-3">
+                                <div id="icon_lamp" class="w-8 h-8 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center"><span class="material-symbols-outlined text-lg">lightbulb</span></div>
+                                <span class="text-sm font-bold font-body">Study Lamp</span>
+                            </div>
+                            <span id="badge_lamp" class="px-4 py-1 bg-surface-variant text-on-surface-variant rounded-full text-[10px] font-label font-bold">OFF</span>
+                        </div>
+                        <div id="card_fan" class="flex items-center justify-between p-3 bg-white rounded-full opacity-60 transition-opacity">
+                            <div class="flex items-center gap-3">
+                                <div id="icon_fan" class="w-8 h-8 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center"><span class="material-symbols-outlined text-lg">mode_fan</span></div>
+                                <span class="text-sm font-bold font-body">Desk Fan</span>
+                            </div>
+                            <span id="badge_fan" class="px-4 py-1 bg-surface-variant text-on-surface-variant rounded-full text-[10px] font-label font-bold">OFF</span>
+                        </div>
+                        <div id="card_ac" class="flex items-center justify-between p-3 bg-white rounded-full opacity-60 transition-opacity">
+                            <div class="flex items-center gap-3">
+                                <div id="icon_ac" class="w-8 h-8 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center"><span class="material-symbols-outlined text-lg">ac_unit</span></div>
+                                <span class="text-sm font-bold font-body">Climate Control</span>
+                            </div>
+                            <span id="badge_ac" class="px-4 py-1 bg-surface-variant text-on-surface-variant rounded-full text-[10px] font-label font-bold">OFF</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm hover:-translate-y-1 transition-transform">
+                <div class="flex justify-between items-start mb-4"><span class="material-symbols-outlined text-primary">thermostat</span></div>
+                <div class="flex items-baseline gap-1"><span id="t_temp" class="text-3xl font-extrabold font-headline">--</span><span class="text-sm font-label text-slate-400">°C</span></div>
+                <p class="text-[10px] font-label font-bold text-slate-500 uppercase mt-2 tracking-wide">Temperature</p>
+            </div>
+            <div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm hover:-translate-y-1 transition-transform">
+                <div class="flex justify-between items-start mb-4"><span class="material-symbols-outlined text-primary">humidity_percentage</span></div>
+                <div class="flex items-baseline gap-1"><span id="t_hum" class="text-3xl font-extrabold font-headline">--</span><span class="text-sm font-label text-slate-400">%</span></div>
+                <p class="text-[10px] font-label font-bold text-slate-500 uppercase mt-2 tracking-wide">Humidity</p>
+            </div>
+            <div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm hover:-translate-y-1 transition-transform">
+                <div class="flex justify-between items-start mb-4"><span class="material-symbols-outlined text-primary">air</span></div>
+                <div class="flex items-baseline gap-1"><span id="t_aqi" class="text-3xl font-extrabold font-headline">--</span><span class="text-sm font-label text-slate-400">AQI</span></div>
+                <p class="text-[10px] font-label font-bold text-slate-500 uppercase mt-2 tracking-wide">Air Quality</p>
+            </div>
+            <div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm hover:-translate-y-1 transition-transform">
+                <div class="flex justify-between items-start mb-4"><span class="material-symbols-outlined text-primary">straighten</span></div>
+                <div class="flex items-baseline gap-1"><span id="t_dist" class="text-3xl font-extrabold font-headline">--</span><span class="text-sm font-label text-slate-400">cm</span></div>
+                <p class="text-[10px] font-label font-bold text-slate-500 uppercase mt-2 tracking-wide">Screen Gap</p>
+            </div>
+            <div id="card_posture" class="bg-surface-container-lowest p-5 rounded-xl shadow-sm transition-colors border-2 border-transparent">
+                <div class="flex justify-between items-start mb-4"><span class="material-symbols-outlined text-primary" id="icon_posture">accessibility_new</span><span id="p_status" class="text-[10px] font-label font-bold uppercase">STANDBY</span></div>
+                <div class="flex items-baseline gap-1"><span id="p_bad" class="text-3xl font-extrabold font-headline">0</span><span class="text-sm font-label text-slate-400">sec</span></div>
+                <p class="text-[10px] font-label font-bold text-slate-500 uppercase mt-2 tracking-wide">Bad Posture Time</p>
+            </div>
+            <div class="bg-surface-container-lowest p-5 rounded-xl shadow-sm hover:-translate-y-1 transition-transform">
+                <div class="flex justify-between items-start mb-4"><span class="material-symbols-outlined text-primary">wb_sunny</span></div>
+                <div class="flex items-baseline gap-1"><span id="t_light" class="text-3xl font-extrabold font-headline">--</span><span class="text-sm font-label text-slate-400">LUX</span></div>
+                <p class="text-[10px] font-label font-bold text-slate-500 uppercase mt-2 tracking-wide">Luminosity</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const socket = io();
+        let previousAlertCount = 0;
+        let postureAlertActive = false;
+
+        // --- Chart.js Initialization (Updated with Dual Axis & All Sensors) ---
+        const ctx = document.getElementById('liveChart').getContext('2d');
+        const maxDataPoints = 30;
+        
+        Chart.defaults.font.family = 'Space Grotesk';
+        const liveChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array(maxDataPoints).fill(''),
+                datasets: [
+                    { label: 'Temp (°C)', borderColor: '#00478d', backgroundColor: 'rgba(0, 71, 141, 0.1)', data: Array(maxDataPoints).fill(null), tension: 0.4, fill: true, borderWidth: 2, pointRadius: 0, yAxisID: 'y' },
+                    { label: 'AQI', borderColor: '#005249', data: Array(maxDataPoints).fill(null), tension: 0.4, borderWidth: 2, pointRadius: 0, yAxisID: 'y' },
+                    { label: 'Humidity (%)', borderColor: '#486176', data: Array(maxDataPoints).fill(null), tension: 0.4, borderWidth: 2, pointRadius: 0, borderDash: [5, 5], yAxisID: 'y' },
+                    { label: 'Distance (cm)', borderColor: '#ba1a1a', data: Array(maxDataPoints).fill(null), tension: 0.4, borderWidth: 2, pointRadius: 0, yAxisID: 'y' },
+                    { label: 'Light (Lux)', borderColor: '#ffbf00', data: Array(maxDataPoints).fill(null), tension: 0.4, borderWidth: 2, pointRadius: 0, yAxisID: 'y1' } // Assigned to right axis
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: { duration: 0 },
+                interaction: { mode: 'index', intersect: false },
+                scales: { 
+                    x: { display: false }, 
+                    y: { 
+                        type: 'linear', display: true, position: 'left',
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' }, ticks: { color: '#727783' } 
+                    },
+                    y1: { // Secondary axis for high-value light sensor
+                        type: 'linear', display: true, position: 'right',
+                        grid: { drawOnChartArea: false }, 
+                        ticks: { color: '#ffbf00' } 
+                    }
+                },
+                plugins: { legend: { labels: { color: '#486176', font: { weight: 'bold' } } } }
+            }
+        });
+
+        // --- Helpers ---
+        function formatTime(seconds) {
+            if (seconds === null || seconds === undefined) return "--:--";
+            let m = Math.floor(seconds / 60);
+            let s = Math.floor(seconds % 60);
+            return `${m}:${s < 10 ? '0' : ''}${s}`;
+        }
+
+        function sendCommand(action) { 
+            if (action === 'stop') {
+                // Play Audio
+                document.getElementById('thunderbolt').play().catch(e => console.log("Audio autoplay blocked."));
+                
+                // Trigger Visual Lightning & Quake
+                const flash = document.getElementById('lightningFlash');
+                const body = document.body;
+                
+                flash.classList.add('flash-active');
+                body.classList.add('shake-active');
+                
+                // Clean up the classes after 600ms so it can be triggered again later
+                setTimeout(() => {
+                    flash.classList.remove('flash-active');
+                    body.classList.remove('shake-active');
+                }, 600);
+            }            
+            socket.emit('command', {action: action});
+        }
+
+        function updateButtonStates(state) {
+            const btnStart = document.getElementById('btn_start');
+            const btnPause = document.getElementById('btn_pause');
+            const btnStop = document.getElementById('btn_stop');
+            
+            const textStart = document.getElementById('text_start');
+            const textPause = document.getElementById('text_pause');
+            const iconStart = document.getElementById('icon_start');
+
+            const baseActive = "active:scale-95 cursor-pointer opacity-100 hover:rotate-0 grayscale-0";
+            const baseDisabled = "opacity-50 cursor-not-allowed pointer-events-none grayscale";
+
+            if (state === 'running') {
+                btnStart.className = `w-full bg-tertiary text-white py-4 rounded-xl flex items-center justify-center gap-3 transition-all ${baseDisabled}`;
+                btnPause.className = `bg-[#FFBF00]/10 text-[#7D5D00] hover:bg-[#FFBF00]/20 py-3 rounded-xl flex items-center justify-center gap-2 transition-all ${baseActive}`;
+                btnStop.className = `bg-error/10 text-error hover:bg-error/20 py-3 rounded-xl flex items-center justify-center gap-2 transition-all ${baseActive}`;
+                
+                // [ FIX: Explicitly update HTML disabled properties ]
+                btnStart.disabled = true; 
+                btnPause.disabled = false;
+                btnStop.disabled = false;
+
+                textStart.innerText = "SESSION ACTIVE";
+                textPause.innerText = "SUSPEND";
+                iconStart.classList.add("animate-pulse"); 
+            } 
+            else if (state === 'paused') {
+                btnStart.className = `w-full bg-tertiary hover:bg-tertiary-container text-white py-4 rounded-xl flex items-center justify-center gap-3 transition-all group ${baseActive}`;
+                btnPause.className = `bg-[#FFBF00]/10 text-[#7D5D00] py-3 rounded-xl flex items-center justify-center gap-2 transition-all ${baseDisabled}`;
+                btnStop.className = `bg-error/10 text-error hover:bg-error/20 py-3 rounded-xl flex items-center justify-center gap-2 transition-all ${baseActive}`;
+                
+                // [ FIX: Explicitly update HTML disabled properties ]
+                btnStart.disabled = false;
+                btnPause.disabled = true;
+                btnStop.disabled = false;
+
+                textStart.innerText = "RESUME SESSION";
+                textPause.innerText = "SUSPENDED";
+                iconStart.classList.remove("animate-pulse");
+            } 
+            else { // stopped
+                btnStart.className = `w-full bg-tertiary hover:bg-tertiary-container text-white py-4 rounded-xl flex items-center justify-center gap-3 transition-all group ${baseActive}`;
+                btnPause.className = `bg-[#FFBF00]/10 text-[#7D5D00] py-3 rounded-xl flex items-center justify-center gap-2 transition-all ${baseDisabled}`;
+                btnStop.className = `bg-error/10 text-error py-3 rounded-xl flex items-center justify-center gap-2 transition-all ${baseDisabled}`;
+                
+                // [ FIX: Explicitly update HTML disabled properties ]
+                btnStart.disabled = false;
+                btnPause.disabled = true;
+                btnStop.disabled = true;
+
+                textStart.innerText = "INITIALIZE";
+                textPause.innerText = "SUSPEND";
+                iconStart.classList.remove("animate-pulse");
+            }
+        }
+
+        function toggleHardwareState(baseId, isActive, textOn, textOff) {
+            const card = document.getElementById(`card_${baseId}`);
+            const icon = document.getElementById(`icon_${baseId}`);
+            const badge = document.getElementById(`badge_${baseId}`);
+
+            if(isActive) {
+                card.classList.remove('opacity-60');
+                icon.className = "w-8 h-8 rounded-full bg-tertiary-container/30 text-tertiary flex items-center justify-center";
+                badge.className = "px-4 py-1 bg-tertiary-container text-on-tertiary-container rounded-full text-[10px] font-label font-bold";
+                badge.innerText = textOn;
+            } else {
+                card.classList.add('opacity-60');
+                icon.className = "w-8 h-8 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center";
+                badge.className = "px-4 py-1 bg-surface-variant text-on-surface-variant rounded-full text-[10px] font-label font-bold";
+                badge.innerText = textOff;
+            }
+        }
+
+        function updateAlertBanner(alertsArray) {
+            const banner = document.getElementById('alertBanner');
+            const msg = document.getElementById('alertMessage');
+            
+            if(alertsArray.length > 0) {
+                banner.classList.remove('hidden');
+                msg.innerText = alertsArray[alertsArray.length - 1]; 
+                
+                if (alertsArray.length > previousAlertCount) {
+                    document.getElementById('alertSound').play().catch(e => console.log("Audio blocked."));
+                }
+            } else {
+                banner.classList.add('hidden');
+                msg.innerText = "--";
+            }
+            previousAlertCount = alertsArray.length;
+        }
+
+        // --- Socket Listeners ---
+        socket.on('system_update', function(data) {
+            
+            // 1. Update Button UX based on State
+            updateButtonStates(data.state);
+
+            const stateText = data.state.toUpperCase();
+            const navStatus = document.getElementById('nav_status');
+            navStatus.innerText = stateText;
+            navStatus.className = `text-xs uppercase font-bold ${stateText === 'RUNNING' ? 'text-tertiary' : 'text-error'}`;
+            
+            // 2. Update Sensors
+            document.getElementById('t_temp').innerText = data.sensors.temperature;
+            document.getElementById('t_hum').innerText = data.sensors.humidity;
+            document.getElementById('t_aqi').innerText = data.sensors.aqi;
+            document.getElementById('t_dist').innerText = data.sensors.distance;
+            document.getElementById('t_light').innerText = data.sensors.light;
+
+            // 3. Update Hardware
+            toggleHardwareState('ac', data.appliances.ac, 'ENGAGED', 'OFF');
+            toggleHardwareState('fan', data.appliances.fan, 'ENGAGED', 'OFF');
+            toggleHardwareState('lamp', data.appliances.lamp_brightness > 0, data.appliances.lamp_brightness + '%', 'OFF');
+            // Toggle Edge Lighting Effect
+            const edgeLight = document.getElementById('edgeLight');
+            if (data.appliances.lamp_brightness === 100) {
+                edgeLight.classList.add('edge-glow-active');
+            } else {
+                edgeLight.classList.remove('edge-glow-active');
+            }
+
+            // 4. Update Timers
+            document.getElementById('timer_temp').innerText = formatTime(data.timers.temp);
+            document.getElementById('timer_aqi').innerText = formatTime(data.timers.aqi);
+
+            // 5. Update Chart (Push all 5 sensors)
+            liveChart.data.datasets.forEach(dataset => dataset.data.shift());
+            liveChart.data.datasets[0].data.push(data.sensors.temperature);
+            liveChart.data.datasets[1].data.push(data.sensors.aqi);
+            liveChart.data.datasets[2].data.push(data.sensors.humidity);
+            liveChart.data.datasets[3].data.push(data.sensors.distance);
+            liveChart.data.datasets[4].data.push(data.sensors.light);
+            liveChart.update();
+
+            // 6. Alerts
+            if(!postureAlertActive) updateAlertBanner(data.alerts);
+        });
+
+        socket.on('posture_update', function(data) {
+            const statusEl = document.getElementById('p_status');
+            const badTimeEl = document.getElementById('p_bad');
+            const cardEl = document.getElementById('card_posture');
+            const iconEl = document.getElementById('icon_posture');
+
+            statusEl.innerText = data.posture.status.toUpperCase();
+            badTimeEl.innerText = data.posture.bad_time;
+
+            if (data.posture.status === "Bad") {
+                statusEl.className = "text-[10px] font-label font-bold uppercase text-error";
+                badTimeEl.className = "text-3xl font-extrabold font-headline text-error";
+                iconEl.className = "material-symbols-outlined text-error";
+                cardEl.className = "bg-error-container/20 p-5 rounded-xl shadow-sm transition-colors border-2 border-error/50";
+            } else {
+                statusEl.className = "text-[10px] font-label font-bold uppercase text-tertiary";
+                badTimeEl.className = "text-3xl font-extrabold font-headline text-on-surface";
+                iconEl.className = "material-symbols-outlined text-primary";
+                cardEl.className = "bg-surface-container-lowest p-5 rounded-xl shadow-sm transition-colors border-2 border-transparent hover:-translate-y-1";
+            }
+
+            if (data.is_triggered) {
+                postureAlertActive = true;
+                updateAlertBanner(data.alerts);
+            } else {
+                postureAlertActive = false;
+            }
+        });
+    </script>
+</body>
+</html>
