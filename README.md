@@ -60,7 +60,7 @@ Ensure your folder structure matches the layout above and you have all your audi
 Open your terminal and install the required Python libraries:
 
 ```
-pip install Flask Flask-SocketIO requests opencv-python mediapipe
+pip install requirenments.txt
 ```
 ### 🎮 How to Run the System
 Because this is a decoupled IoT network, you will need to start the different "nodes" in separate terminal windows.
