@@ -16,6 +16,7 @@ def transmit():
     sensor_data = request.json
     try:
         # PUSH data to the main server
+        print(sensor_data)
         response = requests.post(MAIN_SERVER_URL, json=sensor_data, timeout=2)
         if response.status_code == 200:
             return jsonify({"status": "Transmission Successful"}), 200

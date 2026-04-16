@@ -207,6 +207,13 @@
                             </div>
                             <span id="badge_ac" class="px-4 py-1 bg-surface-variant text-on-surface-variant rounded-full text-[10px] font-label font-bold">OFF</span>
                         </div>
+                        <div id="card_airPurifier" class="flex items-center justify-between p-3 bg-white rounded-full opacity-60 transition-opacity">
+                            <div class="flex items-center gap-3">
+                                <div id="icon_airPurifier" class="w-8 h-8 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center"><span class="material-symbols-outlined text-lg">mode_fan</span></div>
+                                <span class="text-sm font-bold font-body">Air Purifier</span>
+                            </div>
+                            <span id="badge_airPurifier" class="px-4 py-1 bg-surface-variant text-on-surface-variant rounded-full text-[10px] font-label font-bold">OFF</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -429,6 +436,7 @@
             // 3. Update Hardware
             toggleHardwareState('ac', data.appliances.ac, 'ENGAGED', 'OFF');
             toggleHardwareState('fan', data.appliances.fan, 'ENGAGED', 'OFF');
+            toggleHardwareState('airPurifier',data.appliances.airPurifier,'ENGAGED','OFF')
             toggleHardwareState('lamp', data.appliances.lamp_brightness > 0, data.appliances.lamp_brightness + '%', 'OFF');
             // Toggle Edge Lighting Effect
             const edgeLight = document.getElementById('edgeLight');

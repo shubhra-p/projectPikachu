@@ -11,7 +11,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 # --- STATE, THRESHOLDS & TIMERS ---
 session_state = "stopped"
-appliances = {"ac": False, "fan": False, "lamp_brightness": 50}
+appliances = {"ac": False, "fan": False, "lamp_brightness": 50,"airPurifier":False}
 
 THRESHOLDS = {
     "temp_high": 30.0, 
@@ -116,6 +116,7 @@ def ingest_data():
 
         # 2. AIR QUALITY LOGIC
         if sensor_data['aqi'] > THRESHOLDS['aqi_high']:
+            appliances['airPurifier'] = True
             if condition_start_times['aqi'] is None: condition_start_times['aqi'] = current_time
             elapsed = current_time - condition_start_times['aqi']
             remaining = max(0, LIMITS['aqi'] - elapsed)
@@ -127,6 +128,7 @@ def ingest_data():
                 alerts.append("CRITICAL AQI: SESSION AUTO-PAUSED.")
                 condition_start_times['aqi'] = None
         else:
+            appliances['airPurifier'] = False
             condition_start_times['aqi'] = None
 
         # 3. DISTANCE LOGIC
@@ -153,6 +155,7 @@ def ingest_data():
     if session_state != "running":
         appliances['ac'] = False
         appliances['fan'] = False
+        appliances['airPurifier'] = False
         appliances['lamp_brightness'] = 0
 
     payload = {"sensors": sensor_data, "state": session_state, "appliances": appliances, "alerts": alerts, "timers": time_remaining}
